@@ -13,6 +13,8 @@ import { Toaster } from "@/components/ui/sonner";
 import {
   Loader2, Sparkles, Target, TrendingUp, AlertTriangle, CheckCircle2, Lightbulb,
   FileText, MessageSquare, ShieldCheck, Mail, Linkedin, ListTodo, Copy, Trash2, Save,
+  GraduationCap, Hammer, ExternalLink,
+
 } from "lucide-react";
 import { runAnalyze } from "@/lib/ai-client";
 import { useTracker, type TrackedApp } from "@/lib/tracker";
