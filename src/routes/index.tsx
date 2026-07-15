@@ -79,13 +79,15 @@ function Home() {
         />
 
         <Tabs defaultValue="analyze" className="mt-8">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-7">
+          <TabsList className="flex w-full flex-wrap justify-start gap-1 md:grid md:grid-cols-9">
             <TabsTrigger value="analyze"><Target className="mr-1 h-3.5 w-3.5" />Analyze</TabsTrigger>
             <TabsTrigger value="tailor"><FileText className="mr-1 h-3.5 w-3.5" />Tailor</TabsTrigger>
             <TabsTrigger value="interview"><MessageSquare className="mr-1 h-3.5 w-3.5" />Interview</TabsTrigger>
             <TabsTrigger value="format"><ShieldCheck className="mr-1 h-3.5 w-3.5" />Format</TabsTrigger>
             <TabsTrigger value="cover"><Mail className="mr-1 h-3.5 w-3.5" />Cover</TabsTrigger>
             <TabsTrigger value="linkedin"><Linkedin className="mr-1 h-3.5 w-3.5" />LinkedIn</TabsTrigger>
+            <TabsTrigger value="roadmap"><GraduationCap className="mr-1 h-3.5 w-3.5" />Roadmap</TabsTrigger>
+            <TabsTrigger value="projects"><Hammer className="mr-1 h-3.5 w-3.5" />Projects</TabsTrigger>
             <TabsTrigger value="tracker"><ListTodo className="mr-1 h-3.5 w-3.5" />Tracker</TabsTrigger>
           </TabsList>
 
@@ -107,10 +109,17 @@ function Home() {
           <TabsContent value="linkedin" className="mt-6">
             <LinkedInPanel resume={resume} linkedin={linkedin} jd={jd} />
           </TabsContent>
+          <TabsContent value="roadmap" className="mt-6">
+            <RoadmapPanel resume={resume} jd={jd} />
+          </TabsContent>
+          <TabsContent value="projects" className="mt-6">
+            <ProjectsPanel resume={resume} jd={jd} />
+          </TabsContent>
           <TabsContent value="tracker" className="mt-6">
             <TrackerPanel />
           </TabsContent>
         </Tabs>
+
       </main>
 
       <footer className="border-t py-6 text-center text-sm text-muted-foreground">
