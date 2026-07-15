@@ -733,7 +733,250 @@ function TrackerPanel() {
   );
 }
 
+/* ------------------------- ROADMAP ------------------------- */
+type Roadmap = {
+  overview: string;
+  total_weeks: number;
+  weekly_hours: number;
+  phases: {
+    name: string; weeks: number; goal: string; skills: string[]; milestone: string;
+    resources: { title: string; type: string; provider: string; url: string; estimated_hours: number; why: string }[];
+  }[];
+  certifications: { name: string; provider: string; why: string }[];
+  daily_habits: string[];
+  success_metrics: string[];
+};
+
+function RoadmapPanel({ resume, jd }: { resume: string; jd: string }) {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<Roadmap | null>(null);
+  const run = async () => {
+    if (!resume.trim() || !jd.trim()) return toast.error("Add resume and job description first.");
+    setLoading(true); setData(null);
+    try { setData(await runAnalyze<Roadmap>("roadmap", { resume, jobDescription: jd })); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div>
+      <ActionBar onRun={run} loading={loading} label="Generate Learning Roadmap" />
+      {data && (
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="grid gap-4 py-6 sm:grid-cols-3">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Total duration</p>
+                <div className="text-3xl font-bold">{data.total_weeks} <span className="text-base font-normal text-muted-foreground">weeks</span></div>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Weekly commitment</p>
+                <div className="text-3xl font-bold">{data.weekly_hours} <span className="text-base font-normal text-muted-foreground">hrs/wk</span></div>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Phases</p>
+                <div className="text-3xl font-bold">{data.phases?.length ?? 0}</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="py-4 text-sm text-muted-foreground">{data.overview}</CardContent>
+          </Card>
+          <div className="relative space-y-4 border-l-2 border-primary/30 pl-6">
+            {data.phases?.map((p, i) => (
+              <div key={i} className="relative">
+                <div className="absolute -left-[31px] top-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{i + 1}</div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex flex-wrap items-baseline justify-between gap-2 text-base">
+                      <span>{p.name}</span>
+                      <Badge variant="secondary">{p.weeks} weeks</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">{p.goal}</p>
+                    {p.skills?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {p.skills.map((s, j) => <Badge key={j} variant="secondary">{s}</Badge>)}
+                      </div>
+                    )}
+                    {p.resources?.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resources</div>
+                        {p.resources.map((r, k) => (
+                          <div key={k} className="rounded-lg border p-3">
+                            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                              <div className="font-medium">
+                                {r.url ? (
+                                  <a href={r.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                                    {r.title} <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                ) : r.title}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Badge variant="secondary" className="capitalize">{r.type}</Badge>
+                                <span>{r.estimated_hours}h</span>
+                              </div>
+                            </div>
+                            <div className="text-xs text-muted-foreground">{r.provider}</div>
+                            <p className="mt-1 text-sm">{r.why}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {p.milestone && (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-400">Milestone: </span>{p.milestone}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </div>
+          {data.certifications?.length > 0 && (
+            <SectionCard title="Recommended Certifications">
+              {data.certifications.map((c, i) => (
+                <div key={i} className="rounded-lg border p-3">
+                  <div className="font-medium">{c.name}</div>
+                  <div className="text-xs text-muted-foreground">{c.provider}</div>
+                  <p className="mt-1 text-sm">{c.why}</p>
+                </div>
+              ))}
+            </SectionCard>
+          )}
+          <div className="grid gap-6 md:grid-cols-2">
+            {data.daily_habits?.length > 0 && (
+              <SectionCard title="Daily Habits">
+                <ul className="list-disc space-y-1 pl-5 text-sm">{data.daily_habits.map((h, i) => <li key={i}>{h}</li>)}</ul>
+              </SectionCard>
+            )}
+            {data.success_metrics?.length > 0 && (
+              <SectionCard title="Success Metrics">
+                <ul className="list-disc space-y-1 pl-5 text-sm">{data.success_metrics.map((m, i) => <li key={i}>{m}</li>)}</ul>
+              </SectionCard>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------- PROJECTS ------------------------- */
+type ProjectIdeas = {
+  overview: string;
+  projects: {
+    title: string;
+    difficulty: "beginner"|"intermediate"|"advanced";
+    estimated_time: string;
+    skills_demonstrated: string[];
+    problem_statement: string;
+    description: string;
+    core_features: string[];
+    stretch_features: string[];
+    tech_stack: string[];
+    learning_outcomes: string[];
+    portfolio_pitch: string;
+  }[];
+  showcase_tips: string[];
+};
+
+function ProjectsPanel({ resume, jd }: { resume: string; jd: string }) {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<ProjectIdeas | null>(null);
+  const run = async () => {
+    if (!resume.trim() || !jd.trim()) return toast.error("Add resume and job description first.");
+    setLoading(true); setData(null);
+    try { setData(await runAnalyze<ProjectIdeas>("projects", { resume, jobDescription: jd })); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+  const diffTone = (d: string) =>
+    d === "beginner" ? "text-emerald-700 dark:text-emerald-400" :
+    d === "intermediate" ? "text-amber-700 dark:text-amber-400" :
+    "text-rose-700 dark:text-rose-400";
+  return (
+    <div>
+      <ActionBar onRun={run} loading={loading} label="Suggest Portfolio Projects" />
+      {data && (
+        <div className="space-y-6">
+          <Card><CardContent className="py-4 text-sm text-muted-foreground">{data.overview}</CardContent></Card>
+          <div className="grid gap-4 md:grid-cols-2">
+            {data.projects?.map((p, i) => (
+              <Card key={i} className="flex flex-col">
+                <CardHeader>
+                  <CardTitle className="flex flex-wrap items-start justify-between gap-2 text-base">
+                    <span>{p.title}</span>
+                    <span className={`text-xs font-semibold uppercase ${diffTone(p.difficulty)}`}>{p.difficulty}</span>
+                  </CardTitle>
+                  <div className="text-xs text-muted-foreground">{p.estimated_time}</div>
+                </CardHeader>
+                <CardContent className="flex-1 space-y-3">
+                  <p className="text-sm"><span className="font-medium">Problem: </span>{p.problem_statement}</p>
+                  <p className="text-sm text-muted-foreground">{p.description}</p>
+                  {p.tech_stack?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {p.tech_stack.map((t, j) => <Badge key={j} variant="secondary">{t}</Badge>)}
+                    </div>
+                  )}
+                  {p.skills_demonstrated?.length > 0 && (
+                    <div>
+                      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Skills demonstrated</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {p.skills_demonstrated.map((s, j) => <Badge key={j}>{s}</Badge>)}
+                      </div>
+                    </div>
+                  )}
+                  {p.core_features?.length > 0 && (
+                    <div>
+                      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Core features</div>
+                      <ul className="list-disc space-y-0.5 pl-5 text-sm">
+                        {p.core_features.map((f, j) => <li key={j}>{f}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {p.stretch_features?.length > 0 && (
+                    <details className="text-sm">
+                      <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-muted-foreground">Stretch features</summary>
+                      <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                        {p.stretch_features.map((f, j) => <li key={j}>{f}</li>)}
+                      </ul>
+                    </details>
+                  )}
+                  {p.learning_outcomes?.length > 0 && (
+                    <details className="text-sm">
+                      <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-muted-foreground">You'll learn</summary>
+                      <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                        {p.learning_outcomes.map((f, j) => <li key={j}>{f}</li>)}
+                      </ul>
+                    </details>
+                  )}
+                  {p.portfolio_pitch && (
+                    <div className="rounded-lg border bg-muted/50 p-3">
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resume bullet</span>
+                        <Button size="sm" variant="ghost" onClick={() => copy(p.portfolio_pitch)}><Copy className="h-3.5 w-3.5" /></Button>
+                      </div>
+                      <p className="text-sm italic">"{p.portfolio_pitch}"</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {data.showcase_tips?.length > 0 && (
+            <SectionCard title="How to Showcase These">
+              <ul className="list-disc space-y-1 pl-5 text-sm">{data.showcase_tips.map((t, i) => <li key={i}>{t}</li>)}</ul>
+            </SectionCard>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------- SHARED UI ------------------------- */
+
 function SectionCard({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
     <Card>
