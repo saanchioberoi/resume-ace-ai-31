@@ -141,11 +141,14 @@ function InputsCard(props: {
       <CardContent>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium">Resume (plain text)</label>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className="block text-sm font-medium">Resume</label>
+              <PdfUploadButton onText={props.setResume} label="Upload PDF" />
+            </div>
             <Textarea
               value={props.resume}
               onChange={(e) => props.setResume(e.target.value)}
-              placeholder="Paste your full resume text here…"
+              placeholder="Paste your resume text, or upload a PDF above…"
               className="min-h-[220px] resize-y"
             />
           </div>
