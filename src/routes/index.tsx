@@ -58,7 +58,6 @@ function Home() {
               <p className="text-xs text-muted-foreground">AI Career Toolkit</p>
             </div>
           </div>
-          <Badge variant="secondary">Powered by Lovable AI</Badge>
         </div>
       </header>
 
