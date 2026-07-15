@@ -1,27 +1,35 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { Loader2, Sparkles, Target, TrendingUp, AlertTriangle, CheckCircle2, Lightbulb } from "lucide-react";
+import {
+  Loader2, Sparkles, Target, TrendingUp, AlertTriangle, CheckCircle2, Lightbulb,
+  FileText, MessageSquare, ShieldCheck, Mail, Linkedin, ListTodo, Copy, Trash2, Save,
+} from "lucide-react";
+import { runAnalyze } from "@/lib/ai-client";
+import { useTracker, type TrackedApp } from "@/lib/tracker";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "ResumeFit — AI ATS Resume Analyzer" },
+      { title: "ResumeFit — AI ATS Resume Analyzer, Tailor & Tracker" },
       {
         name: "description",
         content:
-          "Score your resume against any job description. Get an ATS score, skill gaps, and personalized rewrite suggestions powered by AI.",
+          "Score your resume against any job, generate a tailored version, predict interview questions, check ATS formatting, draft cover letters, compare with LinkedIn, and track applications.",
       },
-      { property: "og:title", content: "ResumeFit — AI ATS Resume Analyzer" },
+      { property: "og:title", content: "ResumeFit — AI Career Toolkit" },
       {
         property: "og:description",
-        content: "AI-powered ATS compatibility score, skill-gap analysis, and resume improvement recommendations.",
+        content: "AI-powered ATS analysis, resume tailoring, interview prep, cover letters, LinkedIn gap analysis, and application tracker.",
       },
       { property: "og:type", content: "website" },
     ],
@@ -29,46 +37,10 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
-type Analysis = {
-  score: number;
-  verdict: string;
-  matched_keywords: string[];
-  missing_keywords: string[];
-  skill_gaps: { skill: string; why_it_matters: string }[];
-  strengths: string[];
-  weaknesses: string[];
-  recommendations: { title: string; detail: string }[];
-  rewrite_suggestions: { original: string; improved: string }[];
-};
-
 function Home() {
   const [resume, setResume] = useState("");
   const [jd, setJd] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<Analysis | null>(null);
-
-  async function analyze() {
-    if (!resume.trim() || !jd.trim()) {
-      toast.error("Please paste both your resume and the job description.");
-      return;
-    }
-    setLoading(true);
-    setResult(null);
-    try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ resume, jobDescription: jd }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Analysis failed");
-      setResult(data as Analysis);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [linkedin, setLinkedin] = useState("");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
@@ -81,7 +53,7 @@ function Home() {
             </div>
             <div>
               <h1 className="text-lg font-semibold leading-none">ResumeFit</h1>
-              <p className="text-xs text-muted-foreground">AI ATS Analyzer</p>
+              <p className="text-xs text-muted-foreground">AI Career Toolkit</p>
             </div>
           </div>
           <Badge variant="secondary">Powered by Lovable AI</Badge>
@@ -89,60 +61,54 @@ function Home() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-10">
-        <section className="mb-10 text-center">
+        <section className="mb-8 text-center">
           <h2 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
             Beat the ATS. <span className="text-primary">Land the interview.</span>
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            Paste your resume and a target job description. Get an instant ATS compatibility score, skill-gap
-            analysis, and AI-generated rewrite suggestions.
+          <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+            Analyze, tailor, prep, and track — all in one place.
           </p>
         </section>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Your Resume</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                value={resume}
-                onChange={(e) => setResume(e.target.value)}
-                placeholder="Paste your full resume text here…"
-                className="min-h-[280px] resize-y"
-              />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Target Job Description</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                value={jd}
-                onChange={(e) => setJd(e.target.value)}
-                placeholder="Paste the job description or role requirements here…"
-                className="min-h-[280px] resize-y"
-              />
-            </CardContent>
-          </Card>
-        </div>
+        <InputsCard
+          resume={resume} setResume={setResume}
+          jd={jd} setJd={setJd}
+          linkedin={linkedin} setLinkedin={setLinkedin}
+        />
 
-        <div className="mt-6 flex justify-center">
-          <Button size="lg" onClick={analyze} disabled={loading} className="min-w-[220px]">
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing…
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-2 h-4 w-4" /> Analyze My Resume
-              </>
-            )}
-          </Button>
-        </div>
+        <Tabs defaultValue="analyze" className="mt-8">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-7">
+            <TabsTrigger value="analyze"><Target className="mr-1 h-3.5 w-3.5" />Analyze</TabsTrigger>
+            <TabsTrigger value="tailor"><FileText className="mr-1 h-3.5 w-3.5" />Tailor</TabsTrigger>
+            <TabsTrigger value="interview"><MessageSquare className="mr-1 h-3.5 w-3.5" />Interview</TabsTrigger>
+            <TabsTrigger value="format"><ShieldCheck className="mr-1 h-3.5 w-3.5" />Format</TabsTrigger>
+            <TabsTrigger value="cover"><Mail className="mr-1 h-3.5 w-3.5" />Cover</TabsTrigger>
+            <TabsTrigger value="linkedin"><Linkedin className="mr-1 h-3.5 w-3.5" />LinkedIn</TabsTrigger>
+            <TabsTrigger value="tracker"><ListTodo className="mr-1 h-3.5 w-3.5" />Tracker</TabsTrigger>
+          </TabsList>
 
-        {result && <Results data={result} />}
+          <TabsContent value="analyze" className="mt-6">
+            <AnalyzePanel resume={resume} jd={jd} />
+          </TabsContent>
+          <TabsContent value="tailor" className="mt-6">
+            <TailorPanel resume={resume} jd={jd} />
+          </TabsContent>
+          <TabsContent value="interview" className="mt-6">
+            <InterviewPanel resume={resume} jd={jd} />
+          </TabsContent>
+          <TabsContent value="format" className="mt-6">
+            <FormatPanel resume={resume} />
+          </TabsContent>
+          <TabsContent value="cover" className="mt-6">
+            <CoverLetterPanel resume={resume} jd={jd} />
+          </TabsContent>
+          <TabsContent value="linkedin" className="mt-6">
+            <LinkedInPanel resume={resume} linkedin={linkedin} jd={jd} />
+          </TabsContent>
+          <TabsContent value="tracker" className="mt-6">
+            <TrackerPanel />
+          </TabsContent>
+        </Tabs>
       </main>
 
       <footer className="border-t py-6 text-center text-sm text-muted-foreground">
@@ -152,172 +118,639 @@ function Home() {
   );
 }
 
-function Results({ data }: { data: Analysis }) {
+function InputsCard(props: {
+  resume: string; setResume: (v: string) => void;
+  jd: string; setJd: (v: string) => void;
+  linkedin: string; setLinkedin: (v: string) => void;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Your Inputs</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Resume (plain text)</label>
+            <Textarea
+              value={props.resume}
+              onChange={(e) => props.setResume(e.target.value)}
+              placeholder="Paste your full resume text here…"
+              className="min-h-[220px] resize-y"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Target Job Description</label>
+            <Textarea
+              value={props.jd}
+              onChange={(e) => props.setJd(e.target.value)}
+              placeholder="Paste the job description or role requirements here…"
+              className="min-h-[220px] resize-y"
+            />
+          </div>
+        </div>
+        <div className="mt-4">
+          <label className="mb-1 block text-sm font-medium">LinkedIn Profile (optional — for gap analysis)</label>
+          <Textarea
+            value={props.linkedin}
+            onChange={(e) => props.setLinkedin(e.target.value)}
+            placeholder="Paste the visible text from your LinkedIn profile (About, Experience, Skills)…"
+            className="min-h-[120px] resize-y"
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ActionBar({ onRun, loading, label, disabled }: { onRun: () => void; loading: boolean; label: string; disabled?: boolean }) {
+  return (
+    <div className="mb-4 flex justify-end">
+      <Button onClick={onRun} disabled={loading || disabled}>
+        {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Working…</> : <><Sparkles className="mr-2 h-4 w-4" />{label}</>}
+      </Button>
+    </div>
+  );
+}
+
+function copy(text: string) {
+  navigator.clipboard.writeText(text).then(
+    () => toast.success("Copied to clipboard"),
+    () => toast.error("Copy failed"),
+  );
+}
+
+/* ------------------------- ANALYZE ------------------------- */
+type Analysis = {
+  score: number; verdict: string;
+  matched_keywords: string[]; missing_keywords: string[];
+  skill_gaps: { skill: string; why_it_matters: string }[];
+  strengths: string[]; weaknesses: string[];
+  recommendations: { title: string; detail: string }[];
+  rewrite_suggestions: { original: string; improved: string }[];
+};
+
+function AnalyzePanel({ resume, jd }: { resume: string; jd: string }) {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<Analysis | null>(null);
+  const run = async () => {
+    if (!resume.trim() || !jd.trim()) return toast.error("Add resume and job description first.");
+    setLoading(true); setData(null);
+    try { setData(await runAnalyze<Analysis>("analyze", { resume, jobDescription: jd })); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div>
+      <ActionBar onRun={run} loading={loading} label="Run ATS Analysis" />
+      {data && <AnalysisResults data={data} />}
+    </div>
+  );
+}
+
+function AnalysisResults({ data }: { data: Analysis }) {
   const score = Math.max(0, Math.min(100, Number(data.score) || 0));
   const tone = score >= 75 ? "text-emerald-600" : score >= 50 ? "text-amber-600" : "text-rose-600";
-
   return (
-    <section className="mt-10 space-y-6">
+    <div className="space-y-6">
       <Card>
-        <CardContent className="flex flex-col items-center gap-4 py-8 sm:flex-row sm:items-center sm:justify-between">
+        <CardContent className="flex flex-col items-center gap-4 py-8 sm:flex-row sm:justify-between">
           <div className="text-center sm:text-left">
-            <p className="text-sm uppercase tracking-wide text-muted-foreground">ATS Compatibility Score</p>
+            <p className="text-sm uppercase tracking-wide text-muted-foreground">ATS Compatibility</p>
             <div className={`text-6xl font-bold ${tone}`}>{score}%</div>
             <p className="mt-2 max-w-md text-sm text-muted-foreground">{data.verdict}</p>
           </div>
           <div className="w-full sm:max-w-xs">
             <Progress value={score} className="h-3" />
-            <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-              <span>Poor</span>
-              <span>Excellent</span>
+          </div>
+        </CardContent>
+      </Card>
+      <div className="grid gap-6 md:grid-cols-2">
+        <ChipCard icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />} title="Matched Keywords" items={data.matched_keywords} variant="secondary" />
+        <ChipCard icon={<Target className="h-4 w-4 text-rose-600" />} title="Missing Keywords" items={data.missing_keywords} variant="destructive" />
+      </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        <BulletCard icon={<TrendingUp className="h-4 w-4 text-emerald-600" />} title="Strengths" items={data.strengths} bullet="✓" tone="text-emerald-600" />
+        <BulletCard icon={<AlertTriangle className="h-4 w-4 text-amber-600" />} title="Weaknesses" items={data.weaknesses} bullet="!" tone="text-amber-600" />
+      </div>
+      {data.skill_gaps?.length > 0 && (
+        <SectionCard title="Skill Gaps">
+          {data.skill_gaps.map((g, i) => (
+            <div key={i} className="rounded-lg border p-3">
+              <div className="font-medium">{g.skill}</div>
+              <p className="mt-1 text-sm text-muted-foreground">{g.why_it_matters}</p>
             </div>
+          ))}
+        </SectionCard>
+      )}
+      {data.recommendations?.length > 0 && (
+        <SectionCard title="Recommendations" icon={<Lightbulb className="h-4 w-4 text-primary" />}>
+          {data.recommendations.map((r, i) => (
+            <div key={i} className="rounded-lg border p-3">
+              <div className="font-medium">{r.title}</div>
+              <p className="mt-1 text-sm text-muted-foreground">{r.detail}</p>
+            </div>
+          ))}
+        </SectionCard>
+      )}
+      {data.rewrite_suggestions?.length > 0 && (
+        <SectionCard title="Bullet Rewrites">
+          {data.rewrite_suggestions.map((r, i) => (
+            <div key={i} className="grid gap-2 md:grid-cols-2">
+              <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm dark:border-rose-900 dark:bg-rose-950/30">
+                <div className="mb-1 text-xs font-semibold uppercase text-rose-700 dark:text-rose-400">Before</div>{r.original}
+              </div>
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+                <div className="mb-1 text-xs font-semibold uppercase text-emerald-700 dark:text-emerald-400">After</div>{r.improved}
+              </div>
+            </div>
+          ))}
+        </SectionCard>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------- TAILOR ------------------------- */
+type Tailored = {
+  summary: string;
+  core_skills: string[];
+  experience: { role: string; company: string; duration: string; bullets: string[] }[];
+  projects: { name: string; description: string; highlights: string[] }[];
+  education: { degree: string; institution: string; year: string }[];
+  certifications: string[];
+  keywords_added: string[];
+  plain_text_resume: string;
+};
+
+function TailorPanel({ resume, jd }: { resume: string; jd: string }) {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<Tailored | null>(null);
+  const run = async () => {
+    if (!resume.trim() || !jd.trim()) return toast.error("Add resume and job description first.");
+    setLoading(true); setData(null);
+    try { setData(await runAnalyze<Tailored>("tailor", { resume, jobDescription: jd })); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div>
+      <ActionBar onRun={run} loading={loading} label="Generate Tailored Resume" />
+      {data && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Professional Summary</CardTitle>
+              <Button size="sm" variant="ghost" onClick={() => copy(data.summary)}><Copy className="mr-1 h-3.5 w-3.5" />Copy</Button>
+            </CardHeader>
+            <CardContent><p className="text-sm">{data.summary}</p></CardContent>
+          </Card>
+          <ChipCard title="Core Skills" items={data.core_skills} variant="secondary" />
+          <SectionCard title="Experience">
+            {data.experience?.map((e, i) => (
+              <div key={i} className="rounded-lg border p-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div className="font-medium">{e.role} · {e.company}</div>
+                  <div className="text-xs text-muted-foreground">{e.duration}</div>
+                </div>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                  {e.bullets?.map((b, j) => <li key={j}>{b}</li>)}
+                </ul>
+              </div>
+            ))}
+          </SectionCard>
+          {data.projects?.length > 0 && (
+            <SectionCard title="Projects">
+              {data.projects.map((p, i) => (
+                <div key={i} className="rounded-lg border p-3">
+                  <div className="font-medium">{p.name}</div>
+                  <p className="mt-1 text-sm text-muted-foreground">{p.description}</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                    {p.highlights?.map((h, j) => <li key={j}>{h}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </SectionCard>
+          )}
+          {data.keywords_added?.length > 0 && (
+            <ChipCard title="Keywords Woven In" items={data.keywords_added} variant="secondary" />
+          )}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Plain-Text Resume (ATS-Safe)</CardTitle>
+              <Button size="sm" variant="ghost" onClick={() => copy(data.plain_text_resume)}><Copy className="mr-1 h-3.5 w-3.5" />Copy</Button>
+            </CardHeader>
+            <CardContent>
+              <pre className="whitespace-pre-wrap rounded-md bg-muted p-4 text-sm">{data.plain_text_resume}</pre>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------- INTERVIEW ------------------------- */
+type Interview = {
+  technical: { question: string; why_asked: string; model_answer: string }[];
+  behavioral: { question: string; why_asked: string; model_answer: string }[];
+  role_specific: { question: string; why_asked: string; model_answer: string }[];
+  questions_to_ask_them: string[];
+};
+
+function InterviewPanel({ resume, jd }: { resume: string; jd: string }) {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<Interview | null>(null);
+  const run = async () => {
+    if (!resume.trim() || !jd.trim()) return toast.error("Add resume and job description first.");
+    setLoading(true); setData(null);
+    try { setData(await runAnalyze<Interview>("interview", { resume, jobDescription: jd })); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+  const groups: [string, Interview["technical"]][] = data
+    ? [["Technical", data.technical], ["Behavioral", data.behavioral], ["Role-Specific", data.role_specific]]
+    : [];
+  return (
+    <div>
+      <ActionBar onRun={run} loading={loading} label="Predict Interview Questions" />
+      {data && (
+        <div className="space-y-6">
+          {groups.map(([title, list]) => (
+            <SectionCard key={title} title={title}>
+              {list?.map((q, i) => (
+                <details key={i} className="rounded-lg border p-3 open:bg-muted/40">
+                  <summary className="cursor-pointer font-medium">{q.question}</summary>
+                  <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">Why asked</p>
+                  <p className="text-sm">{q.why_asked}</p>
+                  <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">Model answer</p>
+                  <p className="whitespace-pre-wrap text-sm">{q.model_answer}</p>
+                </details>
+              ))}
+            </SectionCard>
+          ))}
+          {data.questions_to_ask_them?.length > 0 && (
+            <SectionCard title="Smart Questions to Ask Them">
+              <ul className="list-disc space-y-1 pl-5 text-sm">
+                {data.questions_to_ask_them.map((q, i) => <li key={i}>{q}</li>)}
+              </ul>
+            </SectionCard>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------- FORMAT CHECK ------------------------- */
+type FormatReport = {
+  format_score: number; verdict: string;
+  issues: { type: string; severity: "low"|"medium"|"high"; evidence: string; impact: string; fix: string }[];
+  safe_practices: string[];
+  checklist: { item: string; passed: boolean }[];
+};
+
+function FormatPanel({ resume }: { resume: string }) {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<FormatReport | null>(null);
+  const run = async () => {
+    if (!resume.trim()) return toast.error("Add your resume text first.");
+    setLoading(true); setData(null);
+    try { setData(await runAnalyze<FormatReport>("format-check", { resume })); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+  const sevTone = (s: string) => s === "high" ? "destructive" : s === "medium" ? "default" : "secondary";
+  return (
+    <div>
+      <ActionBar onRun={run} loading={loading} label="Check ATS Formatting" />
+      {data && (
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="flex items-center justify-between py-6">
+              <div>
+                <p className="text-sm uppercase tracking-wide text-muted-foreground">Format Score</p>
+                <div className="text-5xl font-bold">{data.format_score}%</div>
+                <p className="mt-1 max-w-md text-sm text-muted-foreground">{data.verdict}</p>
+              </div>
+              <Progress value={data.format_score} className="h-3 w-40" />
+            </CardContent>
+          </Card>
+          {data.issues?.length > 0 && (
+            <SectionCard title="Issues Detected">
+              {data.issues.map((iss, i) => (
+                <div key={i} className="rounded-lg border p-3">
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <Badge variant={sevTone(iss.severity) as "default"|"secondary"|"destructive"}>{iss.severity}</Badge>
+                    <span className="font-medium capitalize">{iss.type}</span>
+                  </div>
+                  <p className="text-sm"><span className="text-muted-foreground">Evidence:</span> {iss.evidence}</p>
+                  <p className="text-sm"><span className="text-muted-foreground">Impact:</span> {iss.impact}</p>
+                  <p className="text-sm"><span className="text-muted-foreground">Fix:</span> {iss.fix}</p>
+                </div>
+              ))}
+            </SectionCard>
+          )}
+          {data.checklist?.length > 0 && (
+            <SectionCard title="ATS Checklist">
+              <ul className="space-y-1 text-sm">
+                {data.checklist.map((c, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className={c.passed ? "text-emerald-600" : "text-rose-600"}>{c.passed ? "✓" : "✗"}</span>
+                    <span>{c.item}</span>
+                  </li>
+                ))}
+              </ul>
+            </SectionCard>
+          )}
+          {data.safe_practices?.length > 0 && (
+            <SectionCard title="What's Working">
+              <ul className="list-disc space-y-1 pl-5 text-sm">
+                {data.safe_practices.map((p, i) => <li key={i}>{p}</li>)}
+              </ul>
+            </SectionCard>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------- COVER LETTER ------------------------- */
+type Cover = {
+  subject_line: string; greeting: string; opening: string;
+  body_paragraphs: string[]; closing: string; signature: string; full_letter: string;
+};
+
+function CoverLetterPanel({ resume, jd }: { resume: string; jd: string }) {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<Cover | null>(null);
+  const [tone, setTone] = useState("professional");
+  const run = async () => {
+    if (!resume.trim() || !jd.trim()) return toast.error("Add resume and job description first.");
+    setLoading(true); setData(null);
+    try { setData(await runAnalyze<Cover>("cover-letter", { resume, jobDescription: jd, extras: { tone } })); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Tone</span>
+          <Select value={tone} onValueChange={setTone}>
+            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="professional">Professional</SelectItem>
+              <SelectItem value="enthusiastic">Enthusiastic</SelectItem>
+              <SelectItem value="concise">Concise</SelectItem>
+              <SelectItem value="warm">Warm</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button onClick={run} disabled={loading}>
+          {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Writing…</> : <><Sparkles className="mr-2 h-4 w-4" />Write Cover Letter</>}
+        </Button>
+      </div>
+      {data && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">{data.subject_line}</CardTitle>
+            <Button size="sm" variant="ghost" onClick={() => copy(data.full_letter)}><Copy className="mr-1 h-3.5 w-3.5" />Copy</Button>
+          </CardHeader>
+          <CardContent>
+            <pre className="whitespace-pre-wrap rounded-md bg-muted p-4 text-sm">{data.full_letter}</pre>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------- LINKEDIN GAP ------------------------- */
+type Gap = {
+  consistency_score: number;
+  inconsistencies: { field: string; resume_says: string; linkedin_says: string; recommendation: string }[];
+  missing_on_linkedin: string[];
+  missing_on_resume: string[];
+  headline_suggestions: string[];
+  about_section_rewrite: string;
+  profile_improvements: { area: string; suggestion: string }[];
+};
+
+function LinkedInPanel({ resume, linkedin, jd }: { resume: string; linkedin: string; jd: string }) {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<Gap | null>(null);
+  const run = async () => {
+    if (!resume.trim() || !linkedin.trim())
+      return toast.error("Paste both resume and LinkedIn profile text in the inputs above.");
+    setLoading(true); setData(null);
+    try { setData(await runAnalyze<Gap>("linkedin-gap", { resume, linkedin, jobDescription: jd })); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div>
+      <ActionBar onRun={run} loading={loading} label="Analyze LinkedIn Gap" />
+      {data && (
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="flex items-center justify-between py-6">
+              <div>
+                <p className="text-sm uppercase tracking-wide text-muted-foreground">Consistency Score</p>
+                <div className="text-5xl font-bold">{data.consistency_score}%</div>
+              </div>
+              <Progress value={data.consistency_score} className="h-3 w-40" />
+            </CardContent>
+          </Card>
+          {data.inconsistencies?.length > 0 && (
+            <SectionCard title="Inconsistencies">
+              {data.inconsistencies.map((c, i) => (
+                <div key={i} className="rounded-lg border p-3">
+                  <div className="font-medium capitalize">{c.field}</div>
+                  <div className="mt-2 grid gap-2 md:grid-cols-2">
+                    <div className="rounded bg-muted p-2 text-sm"><span className="text-xs text-muted-foreground">Resume:</span> {c.resume_says}</div>
+                    <div className="rounded bg-muted p-2 text-sm"><span className="text-xs text-muted-foreground">LinkedIn:</span> {c.linkedin_says}</div>
+                  </div>
+                  <p className="mt-2 text-sm"><span className="text-muted-foreground">Fix:</span> {c.recommendation}</p>
+                </div>
+              ))}
+            </SectionCard>
+          )}
+          <div className="grid gap-6 md:grid-cols-2">
+            <SectionCard title="Add to LinkedIn">
+              <ul className="list-disc space-y-1 pl-5 text-sm">{data.missing_on_linkedin?.map((s, i) => <li key={i}>{s}</li>)}</ul>
+            </SectionCard>
+            <SectionCard title="Add to Resume">
+              <ul className="list-disc space-y-1 pl-5 text-sm">{data.missing_on_resume?.map((s, i) => <li key={i}>{s}</li>)}</ul>
+            </SectionCard>
+          </div>
+          {data.headline_suggestions?.length > 0 && (
+            <SectionCard title="Headline Suggestions">
+              <ul className="space-y-2 text-sm">
+                {data.headline_suggestions.map((h, i) => (
+                  <li key={i} className="flex items-start justify-between gap-2 rounded border p-2">
+                    <span>{h}</span>
+                    <Button size="sm" variant="ghost" onClick={() => copy(h)}><Copy className="h-3.5 w-3.5" /></Button>
+                  </li>
+                ))}
+              </ul>
+            </SectionCard>
+          )}
+          {data.about_section_rewrite && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Rewritten "About" Section</CardTitle>
+                <Button size="sm" variant="ghost" onClick={() => copy(data.about_section_rewrite)}><Copy className="mr-1 h-3.5 w-3.5" />Copy</Button>
+              </CardHeader>
+              <CardContent><pre className="whitespace-pre-wrap rounded-md bg-muted p-4 text-sm">{data.about_section_rewrite}</pre></CardContent>
+            </Card>
+          )}
+          {data.profile_improvements?.length > 0 && (
+            <SectionCard title="Profile Improvements">
+              {data.profile_improvements.map((p, i) => (
+                <div key={i} className="rounded-lg border p-3">
+                  <div className="font-medium">{p.area}</div>
+                  <p className="mt-1 text-sm text-muted-foreground">{p.suggestion}</p>
+                </div>
+              ))}
+            </SectionCard>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------- TRACKER ------------------------- */
+function TrackerPanel() {
+  const { apps, add, update, remove } = useTracker();
+  const [form, setForm] = useState({ company: "", role: "", resumeVersion: "", score: "" });
+
+  const stats = useMemo(() => ({
+    total: apps.length,
+    applied: apps.filter((a) => a.status === "applied").length,
+    interview: apps.filter((a) => a.status === "interview").length,
+    offer: apps.filter((a) => a.status === "offer").length,
+  }), [apps]);
+
+  const submit = () => {
+    if (!form.company.trim() || !form.role.trim())
+      return toast.error("Company and role are required.");
+    add({
+      company: form.company.trim(),
+      role: form.role.trim(),
+      status: "saved",
+      resumeVersion: form.resumeVersion.trim() || undefined,
+      score: form.score ? Number(form.score) : undefined,
+    });
+    setForm({ company: "", role: "", resumeVersion: "", score: "" });
+    toast.success("Application saved");
+  };
+
+  const badgeFor = (s: TrackedApp["status"]) => {
+    const map: Record<TrackedApp["status"], "default"|"secondary"|"destructive"> = {
+      saved: "secondary", applied: "default", interview: "default", offer: "default", rejected: "destructive",
+    };
+    return map[s];
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {[["Total", stats.total], ["Applied", stats.applied], ["Interviews", stats.interview], ["Offers", stats.offer]].map(([label, v]) => (
+          <Card key={label as string}>
+            <CardContent className="py-4 text-center">
+              <div className="text-2xl font-bold">{v}</div>
+              <div className="text-xs text-muted-foreground">{label}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Add Application</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-4">
+            <Input placeholder="Company" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
+            <Input placeholder="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
+            <Input placeholder="Resume version (e.g. v3-backend)" value={form.resumeVersion} onChange={(e) => setForm({ ...form, resumeVersion: e.target.value })} />
+            <Input placeholder="ATS score" type="number" min={0} max={100} value={form.score} onChange={(e) => setForm({ ...form, score: e.target.value })} />
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button onClick={submit}><Save className="mr-1 h-4 w-4" />Save</Button>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <ListCard
-          icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-          title="Matched Keywords"
-          items={data.matched_keywords}
-          variant="secondary"
-        />
-        <ListCard
-          icon={<Target className="h-4 w-4 text-rose-600" />}
-          title="Missing Keywords"
-          items={data.missing_keywords}
-          variant="destructive"
-        />
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <TrendingUp className="h-4 w-4 text-emerald-600" /> Strengths
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm">
-              {data.strengths?.map((s, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="text-emerald-600">✓</span>
-                  <span>{s}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <AlertTriangle className="h-4 w-4 text-amber-600" /> Weaknesses
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm">
-              {data.weaknesses?.map((s, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="text-amber-600">!</span>
-                  <span>{s}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
-
-      {data.skill_gaps?.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Skill Gaps</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {data.skill_gaps.map((g, i) => (
-              <div key={i} className="rounded-lg border p-3">
-                <div className="font-medium">{g.skill}</div>
-                <p className="mt-1 text-sm text-muted-foreground">{g.why_it_matters}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {data.recommendations?.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Lightbulb className="h-4 w-4 text-primary" /> Personalized Recommendations
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {data.recommendations.map((r, i) => (
-              <div key={i} className="rounded-lg border p-3">
-                <div className="font-medium">{r.title}</div>
-                <p className="mt-1 text-sm text-muted-foreground">{r.detail}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {data.rewrite_suggestions?.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Bullet Rewrite Suggestions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {data.rewrite_suggestions.map((r, i) => (
-              <div key={i} className="grid gap-2 md:grid-cols-2">
-                <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm dark:border-rose-900 dark:bg-rose-950/30">
-                  <div className="mb-1 text-xs font-semibold uppercase text-rose-700 dark:text-rose-400">Before</div>
-                  {r.original}
-                </div>
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-                  <div className="mb-1 text-xs font-semibold uppercase text-emerald-700 dark:text-emerald-400">
-                    After
+      <Card>
+        <CardHeader><CardTitle className="text-base">Your Applications</CardTitle></CardHeader>
+        <CardContent>
+          {apps.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">No applications yet. Add one above.</p>
+          ) : (
+            <div className="space-y-2">
+              {apps.map((a) => (
+                <div key={a.id} className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{a.role} · <span className="text-muted-foreground">{a.company}</span></div>
+                    <div className="text-xs text-muted-foreground">
+                      {a.resumeVersion ? `Resume: ${a.resumeVersion}` : "No version"} ·{" "}
+                      {typeof a.score === "number" ? `${a.score}% match` : "no score"} ·{" "}
+                      {new Date(a.createdAt).toLocaleDateString()}
+                    </div>
                   </div>
-                  {r.improved}
+                  <Select value={a.status} onValueChange={(v) => update(a.id, { status: v as TrackedApp["status"] })}>
+                    <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="saved">Saved</SelectItem>
+                      <SelectItem value="applied">Applied</SelectItem>
+                      <SelectItem value="interview">Interview</SelectItem>
+                      <SelectItem value="offer">Offer</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Badge variant={badgeFor(a.status)}>{a.status}</Badge>
+                  <Button size="icon" variant="ghost" onClick={() => remove(a.id)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-    </section>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
-function ListCard({
-  icon,
-  title,
-  items,
-  variant,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  items: string[];
-  variant: "secondary" | "destructive";
-}) {
+/* ------------------------- SHARED UI ------------------------- */
+function SectionCard({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          {icon} {title}
-        </CardTitle>
-      </CardHeader>
+      <CardHeader><CardTitle className="flex items-center gap-2 text-base">{icon}{title}</CardTitle></CardHeader>
+      <CardContent className="space-y-3">{children}</CardContent>
+    </Card>
+  );
+}
+function ChipCard({ icon, title, items, variant }: { icon?: React.ReactNode; title: string; items: string[]; variant: "secondary"|"destructive" }) {
+  return (
+    <Card>
+      <CardHeader><CardTitle className="flex items-center gap-2 text-base">{icon}{title}</CardTitle></CardHeader>
       <CardContent>
         {items?.length ? (
-          <div className="flex flex-wrap gap-2">
-            {items.map((k, i) => (
-              <Badge key={i} variant={variant}>
-                {k}
-              </Badge>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">None detected.</p>
-        )}
+          <div className="flex flex-wrap gap-2">{items.map((k, i) => <Badge key={i} variant={variant}>{k}</Badge>)}</div>
+        ) : <p className="text-sm text-muted-foreground">None detected.</p>}
+      </CardContent>
+    </Card>
+  );
+}
+function BulletCard({ icon, title, items, bullet, tone }: { icon?: React.ReactNode; title: string; items: string[]; bullet: string; tone: string }) {
+  return (
+    <Card>
+      <CardHeader><CardTitle className="flex items-center gap-2 text-base">{icon}{title}</CardTitle></CardHeader>
+      <CardContent>
+        <ul className="space-y-2 text-sm">
+          {items?.map((s, i) => <li key={i} className="flex gap-2"><span className={tone}>{bullet}</span><span>{s}</span></li>)}
+        </ul>
       </CardContent>
     </Card>
   );
