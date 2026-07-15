@@ -153,11 +153,14 @@ function InputsCard(props: {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Target Job Description</label>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className="block text-sm font-medium">Target Job Description</label>
+              <PdfUploadButton onText={props.setJd} label="Upload PDF" />
+            </div>
             <Textarea
               value={props.jd}
               onChange={(e) => props.setJd(e.target.value)}
-              placeholder="Paste the job description or role requirements here…"
+              placeholder="Paste the job description, or upload a PDF above…"
               className="min-h-[220px] resize-y"
             />
           </div>
