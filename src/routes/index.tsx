@@ -13,10 +13,10 @@ import { Toaster } from "@/components/ui/sonner";
 import {
   Loader2, Sparkles, Target, TrendingUp, AlertTriangle, CheckCircle2, Lightbulb,
   FileText, MessageSquare, ShieldCheck, Mail, Linkedin, ListTodo, Copy, Trash2, Save,
-  GraduationCap, Hammer, ExternalLink,
-
+  GraduationCap, Hammer, ExternalLink, Upload,
 } from "lucide-react";
 import { runAnalyze } from "@/lib/ai-client";
+import { extractPdfText } from "@/lib/pdf";
 import { useTracker, type TrackedApp } from "@/lib/tracker";
 
 export const Route = createFileRoute("/")({
@@ -58,7 +58,6 @@ function Home() {
               <p className="text-xs text-muted-foreground">AI Career Toolkit</p>
             </div>
           </div>
-          <Badge variant="secondary">Powered by Lovable AI</Badge>
         </div>
       </header>
 
@@ -142,20 +141,26 @@ function InputsCard(props: {
       <CardContent>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium">Resume (plain text)</label>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className="block text-sm font-medium">Resume</label>
+              <PdfUploadButton onText={props.setResume} label="Upload PDF" />
+            </div>
             <Textarea
               value={props.resume}
               onChange={(e) => props.setResume(e.target.value)}
-              placeholder="Paste your full resume text here…"
+              placeholder="Paste your resume text, or upload a PDF above…"
               className="min-h-[220px] resize-y"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Target Job Description</label>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className="block text-sm font-medium">Target Job Description</label>
+              <PdfUploadButton onText={props.setJd} label="Upload PDF" />
+            </div>
             <Textarea
               value={props.jd}
               onChange={(e) => props.setJd(e.target.value)}
-              placeholder="Paste the job description or role requirements here…"
+              placeholder="Paste the job description, or upload a PDF above…"
               className="min-h-[220px] resize-y"
             />
           </div>
@@ -171,6 +176,45 @@ function InputsCard(props: {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function PdfUploadButton({ onText, label = "Upload PDF" }: { onText: (text: string) => void; label?: string }) {
+  const [loading, setLoading] = useState(false);
+  const inputId = useMemo(() => `pdf-${Math.random().toString(36).slice(2, 8)}`, []);
+  const handle = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      return toast.error("Please upload a PDF file");
+    }
+    setLoading(true);
+    try {
+      const text = await extractPdfText(file);
+      if (!text.trim()) throw new Error("No text found in PDF (it may be a scanned image)");
+      onText(text);
+      toast.success(`Loaded ${file.name}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to read PDF");
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <>
+      <input id={inputId} type="file" accept="application/pdf,.pdf" className="hidden" onChange={handle} />
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={loading}
+        onClick={() => document.getElementById(inputId)?.click()}
+      >
+        {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-1.5 h-3.5 w-3.5" />}
+        {label}
+      </Button>
+    </>
   );
 }
 
