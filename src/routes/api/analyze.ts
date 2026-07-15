@@ -6,7 +6,10 @@ type Mode =
   | "interview"
   | "format-check"
   | "cover-letter"
-  | "linkedin-gap";
+  | "linkedin-gap"
+  | "roadmap"
+  | "projects";
+
 
 type Body = {
   mode?: Mode;
@@ -95,7 +98,54 @@ Return ONLY the JSON.`,
   "profile_improvements": [{ "area": string, "suggestion": string }]
 }
 Return ONLY the JSON.`,
+
+  roadmap: `You are a career coach and curriculum designer. Given the resume, the target job description, and the identified skill gaps, produce a personalized learning roadmap organized into phases. Recommend concrete, high-quality resources (courses, docs, books, YouTube channels) — use widely-known real sources only (freeCodeCamp, Coursera, Udemy, MIT OCW, official docs, YouTube channels like fireship, etc.); if unsure, describe the resource type instead of inventing a URL. Return STRICT JSON:
+{
+  "overview": string (2-3 sentences summarizing the plan),
+  "total_weeks": number,
+  "weekly_hours": number (recommended hours per week),
+  "phases": [{
+    "name": string (e.g. "Phase 1: Foundations"),
+    "weeks": number,
+    "goal": string,
+    "skills": string[] (skills mastered in this phase),
+    "resources": [{
+      "title": string,
+      "type": "course"|"video"|"book"|"docs"|"tutorial"|"practice",
+      "provider": string,
+      "url": string (best-effort real URL, or empty string if unsure),
+      "estimated_hours": number,
+      "why": string
+    }],
+    "milestone": string (checkpoint to prove mastery)
+  }],
+  "certifications": [{ "name": string, "provider": string, "why": string }],
+  "daily_habits": string[] (5-7 sustainable habits),
+  "success_metrics": string[] (how to know the roadmap is working)
+}
+Return ONLY the JSON.`,
+
+  projects: `You are a senior engineer / hiring manager. Given the resume, job description, and skill gaps, propose 5-7 portfolio projects the candidate should build to close those gaps and impress recruiters for THIS specific role. Prioritize projects that directly demonstrate the missing skills and can be built in 1-4 weeks each. Return STRICT JSON:
+{
+  "overview": string,
+  "projects": [{
+    "title": string,
+    "difficulty": "beginner"|"intermediate"|"advanced",
+    "estimated_time": string (e.g. "2 weeks", "20 hours"),
+    "skills_demonstrated": string[] (targets the missing_keywords / skill_gaps),
+    "problem_statement": string (what problem it solves),
+    "description": string (2-3 sentences of what to build),
+    "core_features": string[] (5-8 must-have features),
+    "stretch_features": string[] (optional bonus scope),
+    "tech_stack": string[] (specific technologies matching the JD),
+    "learning_outcomes": string[] (what you will learn by building it),
+    "portfolio_pitch": string (1-2 sentence resume bullet describing the finished project, impact-first with metrics)
+  }],
+  "showcase_tips": string[] (how to present these on GitHub, resume, LinkedIn)
+}
+Return ONLY the JSON.`,
 };
+
 
 function buildUserMessage(body: Body): string {
   const jd = body.jobDescription?.trim() ?? "";
