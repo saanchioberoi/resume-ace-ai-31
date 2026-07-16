@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -71,6 +71,8 @@ function Home() {
           </p>
         </section>
 
+        <ConfigStatusPanel />
+
         <InputsCard
           resume={resume} setResume={setResume}
           jd={jd} setJd={setJd}
@@ -124,6 +126,100 @@ function Home() {
       <footer className="border-t py-6 text-center text-sm text-muted-foreground">
         Built with TanStack Start + Lovable AI
       </footer>
+    </div>
+  );
+}
+
+type StatusInfo = {
+  endpoint: string;
+  configured: boolean;
+  key_present: boolean;
+  key_length: number;
+  key_hint: string | null;
+  gateway: string;
+  model: string;
+  checked_at: string;
+};
+
+function ConfigStatusPanel() {
+  const [status, setStatus] = useState<StatusInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const check = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/status");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Status check failed");
+      setStatus(data as StatusInfo);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Status check failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { check(); }, []);
+
+  const ok = status?.configured === true;
+  return (
+    <Card className="mb-6">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="h-4 w-4" />
+            Configuration Status
+          </CardTitle>
+          <Button size="sm" variant="outline" onClick={check} disabled={loading}>
+            {loading ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+            Re-check
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {error ? (
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <AlertTriangle className="h-4 w-4" /> {error}
+          </div>
+        ) : !status ? (
+          <p className="text-sm text-muted-foreground">Checking endpoint…</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <StatusRow label="Endpoint" value={status.endpoint} mono />
+            <StatusRow
+              label="LOVABLE_API_KEY"
+              value={
+                <Badge variant={ok ? "default" : "destructive"} className="gap-1">
+                  {ok ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                  {ok ? "Configured" : "Missing"}
+                </Badge>
+              }
+            />
+            <StatusRow label="Key preview" value={<span className="font-mono text-xs">{status.key_hint ?? "—"}</span>} />
+            <StatusRow label="Key length" value={status.key_length > 0 ? `${status.key_length} chars` : "—"} />
+            <StatusRow label="Model" value={status.model} mono />
+            <StatusRow label="Gateway" value={status.gateway} mono />
+            <StatusRow
+              label="Last checked"
+              value={new Date(status.checked_at).toLocaleTimeString()}
+            />
+          </div>
+        )}
+        <p className="mt-3 text-xs text-muted-foreground">
+          The key value never leaves the server. Only a masked preview and length are returned.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatusRow({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2">
+      <span className="text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className={`text-sm ${mono ? "font-mono" : ""}`}>{value}</span>
     </div>
   );
 }
