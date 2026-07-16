@@ -77,14 +77,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "ResumeFit — AI ATS Resume Analyzer, Tailor & Tracker" },
+      { name: "description", content: "Score your resume against any job, generate a tailored version, predict interview questions, check ATS formatting, draft cover letters, compare with LinkedIn, and track applications." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "ResumeFit — AI ATS Resume Analyzer, Tailor & Tracker" },
+      { property: "og:description", content: "Score your resume against any job, generate a tailored version, predict interview questions, check ATS formatting, draft cover letters, compare with LinkedIn, and track applications." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "ResumeFit — AI ATS Resume Analyzer, Tailor & Tracker" },
+      { name: "twitter:description", content: "Score your resume against any job, generate a tailored version, predict interview questions, check ATS formatting, draft cover letters, compare with LinkedIn, and track applications." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2898adc0-e70f-4057-8447-521162f250c4/id-preview-2f8be2e0--874a4ea3-be22-439d-a823-7574b7ac0e26.lovable.app-1784206293462.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2898adc0-e70f-4057-8447-521162f250c4/id-preview-2f8be2e0--874a4ea3-be22-439d-a823-7574b7ac0e26.lovable.app-1784206293462.png" },
     ],
     links: [
       {

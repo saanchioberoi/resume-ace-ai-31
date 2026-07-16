@@ -28,10 +28,10 @@ export const Route = createFileRoute("/")({
         content:
           "Score your resume against any job, generate a tailored version, predict interview questions, check ATS formatting, draft cover letters, compare with LinkedIn, and track applications.",
       },
-      { property: "og:title", content: "ResumeFit — AI Career Toolkit" },
+      { property: "og:title", content: "ResumeFit — AI ATS Resume Analyzer, Tailor & Tracker" },
       {
         property: "og:description",
-        content: "AI-powered ATS analysis, resume tailoring, interview prep, cover letters, LinkedIn gap analysis, and application tracker.",
+        content: "Score your resume against any job, generate a tailored version, predict interview questions, check ATS formatting, draft cover letters, compare with LinkedIn, and track applications.",
       },
       { property: "og:type", content: "website" },
     ],
